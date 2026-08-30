@@ -1,0 +1,15 @@
+{
+  "name": "Доска задач — Атом",
+  "short_name": "Атом",
+  "description": "Личная доска задач с синхронизацией и выгрузкой в Outlook",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#2A2A2E",
+  "theme_color": "#2A2A2E",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
