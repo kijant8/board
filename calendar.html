@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2A2A2E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Календарь">
+<link rel="manifest" href="manifest-calendar.webmanifest">
+<link rel="apple-touch-icon" href="icon-cal-192.png">
+<title>Календарь — Атом</title>
+<style>
+  :root{
+    --bg:#2A2A2E; --panel:#37373C; --panel2:#313136; --line:#4A4A50; --line-soft:#424248;
+    --card:#F4F4F6; --card-text:#28282C; --card-muted:#6B6B72;
+    --text:#EDEDF0; --muted:#9E9EA6; --accent:#8B6BF2;
+    --work:#5AA9E6; --family:#E0A458; --sport:#6FA98F; --learn:#B98BE0; --personal:#9E9EA6;
+    --over:#C4536B; --ok:#6FA98F;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:Arial,"Helvetica Neue",Helvetica,sans-serif;font-size:15px;line-height:1.4;padding-bottom:env(safe-area-inset-bottom)}
+  button,input,select,textarea{font-family:inherit;font-size:inherit}
+  button{cursor:pointer;border:none;background:none;color:inherit}
+
+  header{padding:14px 16px 10px;border-bottom:1px solid var(--line-soft);position:sticky;top:0;background:var(--bg);z-index:20}
+  .h-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  h1{margin:0;font-size:19px;font-weight:bold}
+  .sub{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin:0 0 2px}
+  .sync-state{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer}
+  .sdot{width:8px;height:8px;border-radius:99px;background:#8E8E96}
+  .sdot.on{background:#6FA98F}.sdot.pend{background:#E0A458}.sdot.err{background:#C4536B}
+  .sdot.spin{background:#8B6BF2;animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line-soft)}
+  .btn{padding:9px 13px;border-radius:8px;background:var(--panel);border:1px solid var(--line);font-size:13px;font-weight:bold;min-height:40px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.ghost{background:transparent}
+  .nav{display:flex;align-items:center;gap:6px;margin-right:auto}
+  .range{font-size:13.5px;font-weight:bold;min-width:150px;text-align:center}
+
+  /* неделя */
+  .week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;padding:14px 16px}
+  .day{background:var(--panel);border:1px solid var(--line-soft);border-radius:9px;padding:9px;min-height:150px;display:flex;flex-direction:column;gap:6px}
+  .day.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .day.weekend{background:var(--panel2)}
+  .dhead{display:flex;align-items:baseline;justify-content:space-between;gap:4px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .dname{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+  .dnum{font-size:16px;font-weight:bold}
+  .load{font-size:10.5px;font-weight:bold;padding:1px 6px;border-radius:99px;background:var(--line);color:var(--text)}
+  .load.ok{background:#2C4A3A;color:#9FD9BB}
+  .load.warn{background:#4A3A24;color:#E8C48C}
+  .load.over{background:#4A2630;color:#F0A0B2}
+
+  .ev{border-radius:6px;padding:6px 7px;font-size:12px;background:var(--card);color:var(--card-text);border-left:3px solid var(--work);cursor:pointer}
+  .ev .t{font-weight:bold;font-size:11px;color:var(--card-muted)}
+  .ev .n{font-weight:bold;line-height:1.25;word-break:break-word}
+  .ev.repeat .n:after{content:" ⟳";color:var(--card-muted);font-weight:normal}
+  .task{border-radius:6px;padding:5px 7px;font-size:11.5px;background:transparent;border:1px dashed var(--line);color:var(--muted);word-break:break-word}
+  .task b{color:#C9C9D0;font-weight:bold}
+  .addday{font-size:11px;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:4px;text-align:center;margin-top:auto}
+
+  /* баланс */
+  .balance{margin:6px 16px 22px;padding:14px;background:var(--panel);border:1px solid var(--line-soft);border-radius:10px}
+  .balance h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.6px}
+  .bars{display:flex;flex-direction:column;gap:7px}
+  .brow{display:flex;align-items:center;gap:9px;font-size:12.5px}
+  .blabel{width:92px;flex:none;color:var(--muted)}
+  .btrack{flex:1;height:9px;background:var(--panel2);border-radius:99px;overflow:hidden}
+  .bfill{height:100%;border-radius:99px}
+  .bval{width:58px;text-align:right;flex:none;font-weight:bold;font-size:12px}
+  .verdict{margin-top:12px;padding:10px;border-radius:8px;font-size:12.5px;line-height:1.5}
+  .verdict.good{background:#22402F;border:1px solid #4E9E75}
+  .verdict.warn{background:#3E3524;border:1px solid #B8863B}
+  .verdict.bad{background:#402226;border:1px solid #C4536B}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-start;justify-content:center;padding:16px;z-index:50;overflow-y:auto}
+  .overlay.open{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:100%;max-width:520px;margin:auto;padding:16px}
+  .modal h3{margin:0 0 14px;font-size:16px}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+  .field input,.field select,.field textarea{width:100%;padding:10px;border-radius:8px;background:var(--card);color:var(--card-text);border:1px solid var(--line);min-height:42px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px}
+  .hint{font-size:11.5px;color:var(--muted);line-height:1.5;margin:4px 0 0}
+  .chip{padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);font-size:12px;text-align:center;font-weight:bold;color:var(--muted)}
+  .chip.sel{color:#fff}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:var(--panel);border:1px solid var(--accent);padding:11px 16px;border-radius:9px;font-size:13px;z-index:99;max-width:90%}
+
+  @media (max-width:900px){
+    .week{grid-template-columns:1fr;gap:9px;padding:12px}
+    .day{min-height:0}
+    .day.empty-mobile{display:none}
+    .range{min-width:120px}
+    .row2,.row3{grid-template-columns:1fr}
+    .blabel{width:74px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-row">
+    <div>
+      <p class="sub">планирование</p>
+      <h1>Календарь мероприятий</h1>
+    </div>
+    <div class="sync-state" id="syncState" onclick="syncNow(true)"><span class="sdot"></span><span>—</span></div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="nav">
+    <button class="btn" onclick="shiftWeek(-1)">‹</button>
+    <span class="range" id="range"></span>
+    <button class="btn" onclick="shiftWeek(1)">›</button>
+    <button class="btn ghost" onclick="goToday()">Сегодня</button>
+  </div>
+  <button class="btn primary" onclick="openEvent(null)">＋ Событие</button>
+  <button class="btn" onclick="openSkeleton()">🧩 Каркас недели</button>
+  <button class="btn" onclick="exportIcs()">📅 В Outlook</button>
+  <a class="btn ghost" href="index.html">↩ Доска задач</a>
+</div>
+
+<div class="week" id="week"></div>
+<div class="balance" id="balance"></div>
+
+<!-- событие -->
+<div class="overlay" id="evOverlay">
+  <div class="modal">
+    <h3 id="evTitle">Событие</h3>
+    <div class="field">
+      <label>Название</label>
+      <input id="e-title" placeholder="Например: Стратсессия с Ликсутовым">
+    </div>
+    <div class="field">
+      <label>Категория</label>
+      <div class="row3" id="typeChips"></div>
+    </div>
+    <div class="row3">
+      <div class="field"><label>Дата</label><input id="e-date" type="date"></div>
+      <div class="field"><label>Начало</label><input id="e-time" type="time"></div>
+      <div class="field"><label>Часов</label><input id="e-dur" type="number" min="0.25" step="0.25" placeholder="1"></div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Повтор</label>
+        <select id="e-repeat">
+          <option value="none">Один раз</option>
+          <option value="weekly">Каждую неделю</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Место / примечание</label>
+        <input id="e-note" placeholder="необязательно">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('evOverlay')">Отмена</button>
+      <button class="btn" id="evDel" style="color:var(--over)" onclick="deleteEvent()">Удалить</button>
+      <button class="btn primary" onclick="saveEvent()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- каркас недели -->
+<div class="overlay" id="skOverlay">
+  <div class="modal">
+    <h3>Каркас недели</h3>
+    <p class="hint" style="margin-bottom:14px">
+      Сначала бронируем время на важное вне работы, а рабочие встречи расставляем в оставшееся.
+      Блоки создаются как еженедельные — их можно потом двигать и удалять по одному.
+    </p>
+    <div class="field">
+      <label>Норма работы в день, часов</label>
+      <input id="sk-norm" type="number" min="4" max="12" step="0.5" value="8">
+    </div>
+    <div id="skList"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('skOverlay')">Отмена</button>
+      <button class="btn primary" onclick="applySkeleton()">Создать блоки</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ==== общие ключи с доской: тот же адрес сайта => те же настройки ==== */
+var CFG_KEY   = "atom-sync-cfg-v1";     /* настройки синхронизации от доски */
+var BOARD_KEY = "atom-board-v2";        /* задачи доски (локальная копия)   */
+var EV_KEY    = "atom-events-v1";
+var NORM_KEY  = "atom-work-norm";
+
+var TYPES = [
+  {key:"work",     label:"Работа",   color:"#5AA9E6"},
+  {key:"family",   label:"Семья",    color:"#E0A458"},
+  {key:"sport",    label:"Спорт",    color:"#6FA98F"},
+  {key:"learn",    label:"Обучение", color:"#B98BE0"},
+  {key:"personal", label:"Личное",   color:"#9E9EA6"}
+];
+function typeMeta(k){ return TYPES.filter(function(t){return t.key===k;})[0] || TYPES[0]; }
+
+var SKELETON = [
+  {label:"Спорт — утро", type:"sport",  days:[1,3,5], time:"07:30", dur:1},
+  {label:"Обучение",     type:"learn",  days:[2,4],   time:"19:00", dur:1},
+  {label:"Семья — ужин", type:"family", days:[1,2,3,4,5], time:"19:30", dur:1.5},
+  {label:"Разбор недели",type:"work",   days:[5],     time:"17:00", dur:1}
+];
+
+var events = [], boardTasks = [], cfg = {}, curMonday = null;
+var editingId = null, curType = "work";
+var syncing = false, dirty = false, lastErr = "", lastSyncAt = 0;
+
+/* ---------- утилиты дат ---------- */
+function pad(n){ return (n<10?"0":"")+n; }
+function iso(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function parseIso(s){ return new Date(s+"T00:00:00"); }
+function mondayOf(d){
+  var x = new Date(d); x.setHours(0,0,0,0);
+  var wd = (x.getDay()+6)%7;             /* пн=0 */
+  x.setDate(x.getDate()-wd); return x;
+}
+function addDays(d,n){ var x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function fmtRange(m){
+  var e = addDays(m,6);
+  var mo = ["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"];
+  return m.getDate()+" "+mo[m.getMonth()]+" — "+e.getDate()+" "+mo[e.getMonth()];
+}
+var DNAMES = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+function nowIso(){ return new Date().toISOString(); }
+function uid(){ return "e"+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function toast(m){ var e=document.createElement("div"); e.className="toast"; e.textContent=m;
+  document.body.appendChild(e); setTimeout(function(){ if(e.parentNode) e.parentNode.removeChild(e); },3800); }
+
+/* ---------- хранилище ---------- */
+function load(){
+  try{ cfg = JSON.parse(localStorage.getItem(CFG_KEY)||"{}"); }catch(e){ cfg={}; }
+  try{ events = JSON.parse(localStorage.getItem(EV_KEY)||"[]"); }catch(e){ events=[]; }
+  try{ boardTasks = JSON.parse(localStorage.getItem(BOARD_KEY)||"[]"); }catch(e){ boardTasks=[]; }
+  try{ dirty = localStorage.getItem("cal-dirty")==="1";
+       lastSyncAt = parseInt(localStorage.getItem("cal-lastSync")||"0",10); }catch(e){}
+}
+function save(){
+  try{ localStorage.setItem(EV_KEY, JSON.stringify(events)); return true; }
+  catch(e){ toast("Не удалось сохранить — нет места в браузере."); return false; }
+}
+function markDirty(){
+  dirty = true;
+  try{ localStorage.setItem("cal-dirty","1"); }catch(e){}
+  updateSync();
+  if(navigator.onLine && isConfigured()){
+    clearTimeout(window._st); window._st = setTimeout(function(){ syncNow(false); }, 2500);
+  }
+}
+function touch(o){ o.modified = nowIso(); o.rev = (o.rev||1)+1; }
+function live(){ return events.filter(function(e){ return !e.deleted; }); }
+
+/* ---------- раскрытие повторов ---------- */
+function occurrences(dateStr){
+  var out = [], d = parseIso(dateStr), wd = (d.getDay()+6)%7;
+  live().forEach(function(ev){
+    if(ev.repeat === "weekly"){
+      var st = parseIso(ev.date);
+      if(d >= st && ((st.getDay()+6)%7) === wd) out.push(ev);
+    } else if(ev.date === dateStr){
+      out.push(ev);
+    }
+  });
+  return out.sort(function(a,b){ return (a.time||"99") < (b.time||"99") ? -1 : 1; });
+}
+function tasksOn(dateStr){
+  return boardTasks.filter(function(t){ return !t.deleted && t.date === dateStr && t.status !== "done"; });
+}
+function dayLoad(dateStr){
+  var h = 0;
+  occurrences(dateStr).forEach(function(ev){ if(ev.type === "work") h += parseFloat(ev.dur)||0; });
+  return h;
+}
+function workNorm(){ return parseFloat(localStorage.getItem(NORM_KEY) || "8"); }
+
+/* ---------- отрисовка ---------- */
+function render(){
+  document.getElementById("range").textContent = fmtRange(curMonday);
+  var today = iso(new Date());
+  var html = "";
+  for(var i=0;i<7;i++){
+    var d = addDays(curMonday,i), ds = iso(d);
+    var evs = occurrences(ds), tks = tasksOn(ds);
+    var load = dayLoad(ds), norm = workNorm();
+    var lcls = load === 0 ? "" : (load <= norm ? "ok" : (load <= norm+2 ? "warn" : "over"));
+    var isWk = i >= 5;
+    html += '<div class="day'+(ds===today?" today":"")+(isWk?" weekend":"")+(!evs.length&&!tks.length?" empty-mobile":"")+'">' +
+      '<div class="dhead"><div><div class="dname">'+DNAMES[i]+'</div><div class="dnum">'+d.getDate()+'</div></div>' +
+      (load ? '<span class="load '+lcls+'">'+(Math.round(load*10)/10)+' ч</span>' : '') + '</div>';
+    evs.forEach(function(ev){
+      var m = typeMeta(ev.type);
+      html += '<div class="ev'+(ev.repeat==="weekly"?" repeat":"")+'" style="border-left-color:'+m.color+'" onclick="openEvent(\''+ev.id+'\')">' +
+        (ev.time ? '<div class="t">'+ev.time+(ev.dur?" · "+ev.dur+" ч":"")+'</div>' : '') +
+        '<div class="n">'+esc(ev.title)+'</div></div>';
+    });
+    tks.forEach(function(t){
+      html += '<div class="task" title="задача с доски">📋 <b>'+esc(t.title)+'</b></div>';
+    });
+    html += '<div class="addday" onclick="openEvent(null,\''+ds+'\')">＋</div></div>';
+  }
+  document.getElementById("week").innerHTML = html;
+  renderBalance();
+}
+
+function renderBalance(){
+  var totals = {}, workDays = [], norm = workNorm();
+  TYPES.forEach(function(t){ totals[t.key] = 0; });
+  for(var i=0;i<7;i++){
+    var ds = iso(addDays(curMonday,i));
+    occurrences(ds).forEach(function(ev){ totals[ev.type] = (totals[ev.type]||0) + (parseFloat(ev.dur)||0); });
+    if(i < 5) workDays.push(dayLoad(ds));
+  }
+  var max = Math.max(1, Math.max.apply(null, TYPES.map(function(t){ return totals[t.key]; })));
+  var bars = TYPES.map(function(t){
+    var v = Math.round(totals[t.key]*10)/10;
+    return '<div class="brow"><span class="blabel">'+t.label+'</span>' +
+      '<span class="btrack"><span class="bfill" style="width:'+(totals[t.key]/max*100)+'%;background:'+t.color+'"></span></span>' +
+      '<span class="bval">'+v+' ч</span></div>';
+  }).join("");
+
+  var over = workDays.filter(function(h){ return h > norm; });
+  var free = workDays.filter(function(h){ return h === 0; });
+  var nonWork = totals.family + totals.sport + totals.learn + totals.personal;
+  var vcls, vtxt;
+  if(over.length >= 3){
+    vcls = "bad";
+    vtxt = "Норма " + norm + " ч превышена в " + over.length + " рабочих днях. Перенесите часть встреч " +
+           (free.length ? "на менее загруженные дни" : "на следующую неделю") + " — иначе вечерние блоки съест работа.";
+  } else if(nonWork < 5){
+    vcls = "warn";
+    vtxt = "На семью, спорт и обучение забронировано всего " + Math.round(nonWork*10)/10 + " ч за неделю. " +
+           "Нажмите «Каркас недели» — он расставит эти блоки заранее, до того как их вытеснят встречи.";
+  } else if(over.length){
+    vcls = "warn";
+    vtxt = "Один-два дня выше нормы — терпимо, если остальные разгружены. Всего вне работы: " + Math.round(nonWork*10)/10 + " ч.";
+  } else {
+    vcls = "good";
+    vtxt = "Неделя сбалансирована: работа в пределах нормы, вне работы забронировано " + Math.round(nonWork*10)/10 + " ч.";
+  }
+
+  document.getElementById("balance").innerHTML =
+    '<h3>Баланс недели</h3><div class="bars">'+bars+'</div>' +
+    '<div class="verdict '+vcls+'">'+vtxt+'</div>' +
+    '<p class="hint">Норма работы: '+norm+' ч в день. Изменить можно в «Каркасе недели».</p>';
+}
+
+function shiftWeek(n){ curMonday = addDays(curMonday, n*7); render(); }
+function goToday(){ curMonday = mondayOf(new Date()); render(); }
+
+/* ---------- события ---------- */
+function openModal(id){ document.getElementById(id).classList.add("open"); }
+function closeModal(id){ document.getElementById(id).classList.remove("open"); }
+
+function renderChips(){
+  document.getElementById("typeChips").innerHTML = TYPES.map(function(t){
+    var sel = t.key === curType;
+    return '<div class="chip'+(sel?" sel":"")+'" style="'+(sel?"background:"+t.color+";border-color:"+t.color:"")+'" ' +
+           'onclick="curType=\''+t.key+'\';renderChips()">'+t.label+'</div>';
+  }).join("");
+}
+
+function openEvent(id, presetDate){
+  editingId = id;
+  var ev = id ? live().filter(function(x){ return x.id===id; })[0] : null;
+  document.getElementById("evTitle").textContent = ev ? "Событие" : "Новое событие";
+  document.getElementById("e-title").value = ev ? ev.title : "";
+  document.getElementById("e-date").value  = ev ? ev.date : (presetDate || iso(new Date()));
+  document.getElementById("e-time").value  = ev ? (ev.time||"") : "";
+  document.getElementById("e-dur").value   = ev ? (ev.dur||"") : "1";
+  document.getElementById("e-repeat").value= ev ? (ev.repeat||"none") : "none";
+  document.getElementById("e-note").value  = ev ? (ev.note||"") : "";
+  document.getElementById("evDel").style.display = ev ? "" : "none";
+  curType = ev ? ev.type : "work";
+  renderChips();
+  openModal("evOverlay");
+}
+
+function saveEvent(){
+  var title = document.getElementById("e-title").value.trim();
+  if(!title){ toast("Введите название."); return; }
+  var data = {
+    title: title, type: curType,
+    date: document.getElementById("e-date").value,
+    time: document.getElementById("e-time").value,
+    dur: parseFloat(document.getElementById("e-dur").value) || 1,
+    repeat: document.getElementById("e-repeat").value,
+    note: document.getElementById("e-note").value.trim()
+  };
+  if(!data.date){ toast("Укажите дату."); return; }
+  if(editingId){
+    var ev = events.filter(function(x){ return x.id===editingId; })[0];
+    Object.keys(data).forEach(function(k){ ev[k]=data[k]; });
+    touch(ev);
+  } else {
+    data.id = uid(); data.created = nowIso(); data.modified = nowIso(); data.rev = 1;
+    events.push(data);
+  }
+  if(save()){ markDirty(); closeModal("evOverlay"); render(); }
+}
+
+function deleteEvent(){
+  if(!editingId) return;
+  if(!confirm("Удалить событие?")) return;
+  var ev = events.filter(function(x){ return x.id===editingId; })[0];
+  if(ev){ ev.deleted = true; touch(ev); }
+  save(); markDirty(); closeModal("evOverlay"); render();
+}
+
+/* ---------- каркас недели ---------- */
+function openSkeleton(){
+  document.getElementById("sk-norm").value = workNorm();
+  document.getElementById("skList").innerHTML = SKELETON.map(function(s,i){
+    var m = typeMeta(s.type);
+    return '<label style="display:flex;gap:9px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:13px">' +
+      '<input type="checkbox" id="sk-'+i+'" checked style="width:18px;height:18px;min-height:0;flex:none">' +
+      '<span style="width:9px;height:9px;border-radius:99px;background:'+m.color+';flex:none"></span>' +
+      '<span style="flex:1">'+s.label+'</span>' +
+      '<span style="color:var(--muted);font-size:12px">'+s.days.map(function(d){return DNAMES[d];}).join(" ")+' · '+s.time+' · '+s.dur+' ч</span></label>';
+  }).join("");
+  openModal("skOverlay");
+}
+
+function applySkeleton(){
+  var norm = parseFloat(document.getElementById("sk-norm").value) || 8;
+  try{ localStorage.setItem(NORM_KEY, String(norm)); }catch(e){}
+  var added = 0;
+  SKELETON.forEach(function(s,i){
+    if(!document.getElementById("sk-"+i).checked) return;
+    s.days.forEach(function(wd){
+      var d = iso(addDays(curMonday, wd));
+      var dup = live().some(function(e){ return e.title===s.label && e.repeat==="weekly" && ((parseIso(e.date).getDay()+6)%7)===wd; });
+      if(dup) return;
+      events.push({ id:uid(), title:s.label, type:s.type, date:d, time:s.time, dur:s.dur,
+        repeat:"weekly", note:"", created:nowIso(), modified:nowIso(), rev:1 });
+      added++;
+    });
+  });
+  save(); markDirty(); closeModal("skOverlay"); render();
+  toast(added ? ("Добавлено блоков: "+added) : "Такие блоки уже стоят.");
+}
+
+/* ---------- ICS ---------- */
+function byteLen(s){ var n=0,i,c; for(i=0;i<s.length;i++){ c=s.charCodeAt(i); n += c<0x80?1:(c<0x800?2:3);} return n; }
+function fold(line){
+  if(byteLen(line)<=74) return line;
+  var out="",chunk="",bytes=0,first=true,i,ch,cb;
+  for(i=0;i<line.length;i++){
+    ch=line.charAt(i); cb=byteLen(ch);
+    if(bytes+cb > (first?74:73)){ out += (first?"":"\r\n ")+chunk; first=false; chunk=""; bytes=0; }
+    chunk+=ch; bytes+=cb;
+  }
+  if(chunk) out += (first?"":"\r\n ")+chunk;
+  return out;
+}
+function icsEsc(s){ return String(s==null?"":s).replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r?\n/g,"\\n"); }
+function stampNow(){ var d=new Date();
+  return d.getUTCFullYear()+pad(d.getUTCMonth()+1)+pad(d.getUTCDate())+"T"+pad(d.getUTCHours())+pad(d.getUTCMinutes())+pad(d.getUTCSeconds())+"Z"; }
+
+function exportIcs(){
+  var list = live();
+  if(!list.length){ toast("Нет событий для выгрузки."); return; }
+  var out = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Atom Calendar//RU","CALSCALE:GREGORIAN","METHOD:PUBLISH"];
+  var stamp = stampNow();
+  list.forEach(function(ev){
+    var c = ev.date.replace(/-/g,""), start, end;
+    if(ev.time){
+      start = "DTSTART:"+c+"T"+ev.time.replace(":","")+"00";
+      var d2 = new Date(ev.date+"T"+ev.time+":00");
+      d2.setMinutes(d2.getMinutes()+Math.round((parseFloat(ev.dur)||1)*60));
+      end = "DTEND:"+d2.getFullYear()+pad(d2.getMonth()+1)+pad(d2.getDate())+"T"+pad(d2.getHours())+pad(d2.getMinutes())+"00";
+    } else {
+      var nx = addDays(parseIso(ev.date),1);
+      start = "DTSTART;VALUE=DATE:"+c;
+      end = "DTEND;VALUE=DATE:"+nx.getFullYear()+pad(nx.getMonth()+1)+pad(nx.getDate());
+    }
+    out.push("BEGIN:VEVENT","UID:"+ev.id+"@atom-calendar","DTSTAMP:"+stamp,start,end);
+    out.push(fold("SUMMARY:"+icsEsc(ev.title)));
+    if(ev.note) out.push(fold("DESCRIPTION:"+icsEsc(ev.note)));
+    out.push(fold("CATEGORIES:"+icsEsc(typeMeta(ev.type).label)));
+    if(ev.repeat === "weekly") out.push("RRULE:FREQ=WEEKLY");
+    out.push("SEQUENCE:"+((ev.rev||1)-1));
+    out.push("END:VEVENT");
+  });
+  out.push("END:VCALENDAR");
+  var blob = new Blob([out.join("\r\n")], {type:"text/calendar;charset=utf-8"});
+  var url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = "atom-calendar.ics";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); },1500);
+  toast("Файл скачан — откройте его, Outlook добавит события.");
+}
+
+/* ---------- синхронизация (тот же аккаунт, что и у доски) ---------- */
+var CAL_FILE = "atom-calendar.json";
+var BOARD_FILE = "atom-board.json";
+
+function isConfigured(){ return cfg.provider === "github" ? !!cfg.ghToken : !!cfg.yaToken; }
+
+function yaRead(name){
+  return fetch("https://cloud-api.yandex.net/v1/disk/resources/download?path="+encodeURIComponent("app:/"+name),
+    { headers:{ "Authorization":"OAuth "+cfg.yaToken } })
+    .then(function(r){
+      if(r.status===404) return null;
+      if(!r.ok) throw new Error("Диск: "+r.status);
+      return r.json().then(function(j){ return fetch(j.href).then(function(f){ return f.json(); }); });
+    });
+}
+function yaWrite(name,payload){
+  return fetch("https://cloud-api.yandex.net/v1/disk/resources/upload?overwrite=true&path="+encodeURIComponent("app:/"+name),
+    { headers:{ "Authorization":"OAuth "+cfg.yaToken } })
+    .then(function(r){ if(!r.ok) throw new Error("Диск: "+r.status); return r.json(); })
+    .then(function(j){ return fetch(j.href,{ method:"PUT", body:new Blob([JSON.stringify(payload)],{type:"application/json"}) }); });
+}
+function ghRead(){
+  if(!cfg.ghGist) return Promise.resolve(null);
+  return fetch("https://api.github.com/gists/"+cfg.ghGist,
+    { headers:{ "Authorization":"Bearer "+cfg.ghToken, "Accept":"application/vnd.github+json" } })
+    .then(function(r){
+      if(r.status===401) throw new Error("Токен GitHub недействителен");
+      if(r.status===404) throw new Error("Хранилище не найдено — проверьте ID на доске");
+      if(!r.ok) throw new Error("GitHub: "+r.status);
+      return r.json();
+    });
+}
+
+/* GitHub обрезает большие файлы и вместо текста даёт ссылку — читаем по ней */
+function ghFile(gist, name){
+  var f = gist && gist.files && gist.files[name];
+  if(!f) return Promise.resolve(null);
+  if(f.truncated && f.raw_url){
+    return fetch(f.raw_url).then(function(r){ return r.ok ? r.json() : null; });
+  }
+  try{ return Promise.resolve(JSON.parse(f.content)); }
+  catch(e){ return Promise.resolve(null); }
+}
+
+function mergeById(local, remote){
+  var by = {}, i;
+  for(i=0;i<remote.length;i++) by[remote[i].id] = remote[i];
+  for(i=0;i<local.length;i++){
+    var l = local[i], r = by[l.id];
+    if(!r){ by[l.id] = l; continue; }
+    by[l.id] = (Date.parse(l.modified||0)||0) >= (Date.parse(r.modified||0)||0) ? l : r;
+  }
+  var out = [];
+  Object.keys(by).forEach(function(k){
+    var x = by[k];
+    if(x.deleted && Date.now()-(Date.parse(x.modified||0)||0) > 90*86400000) return;
+    out.push(x);
+  });
+  return out;
+}
+
+function updateSync(){
+  var el = document.getElementById("syncState"), cls, txt;
+  if(syncing){ cls="spin"; txt="синхронизация…"; }
+  else if(!isConfigured()){ cls=""; txt="настроить на доске"; }
+  else if(lastErr){ cls="err"; txt="ошибка связи"; }
+  else if(!navigator.onLine){ cls=""; txt = dirty?"офлайн, есть правки":"офлайн"; }
+  else if(dirty){ cls="pend"; txt="есть несохранённые"; }
+  else { cls="on"; txt="синхронизировано"; }
+  el.innerHTML = '<span class="sdot '+cls+'"></span><span>'+txt+'</span>';
+}
+
+function syncNow(manual){
+  if(syncing) return;
+  if(!isConfigured()){
+    if(manual) toast("Сначала настройте синхронизацию на доске задач — календарь подхватит её сам.");
+    return;
+  }
+  if(!navigator.onLine){ if(manual) toast("Нет сети. Правки уйдут, когда связь появится."); updateSync(); return; }
+  syncing = true; lastErr = ""; updateSync();
+
+  var isGh = cfg.provider === "github";
+
+  if(isGh && !cfg.ghGist){
+    syncing = false;
+    lastErr = "не найден ID хранилища";
+    updateSync();
+    if(manual) toast("Откройте доску и нажмите 🔄 — она создаст хранилище, календарь подхватит его сам.");
+    return;
+  }
+
+  var readCal = isGh
+    ? ghRead().then(function(j){ return ghFile(j, CAL_FILE); })
+    : yaRead(CAL_FILE);
+
+  readCal.then(function(remote){
+    var merged = mergeById(events, (remote && remote.events) || []);
+    events = merged; save();
+    var payload = { events: merged, updatedAt: nowIso() };
+    if(isGh){
+      var files = {}; files[CAL_FILE] = { content: JSON.stringify(payload) };
+      return fetch("https://api.github.com/gists/"+cfg.ghGist, {
+        method:"PATCH",
+        headers:{ "Authorization":"Bearer "+cfg.ghToken, "Accept":"application/vnd.github+json", "Content-Type":"application/json" },
+        body: JSON.stringify({ files: files })
+      }).then(function(r){ if(!r.ok) throw new Error("GitHub: "+r.status); });
+    }
+    return yaWrite(CAL_FILE, payload);
+  })
+  .then(function(){
+    /* подтягиваем задачи доски, чтобы видеть их в календаре */
+    var readBoard = isGh
+      ? ghRead().then(function(j){ return ghFile(j, BOARD_FILE); })
+      : yaRead(BOARD_FILE);
+    return readBoard.then(function(b){
+      if(b && Array.isArray(b.tasks)){
+        boardTasks = b.tasks;
+        try{ localStorage.setItem(BOARD_KEY, JSON.stringify(b.tasks)); }catch(e){}
+      }
+    }).catch(function(){ /* задачи не критичны */ });
+  })
+  .then(function(){
+    dirty = false; syncing = false; lastSyncAt = Date.now();
+    try{ localStorage.setItem("cal-dirty","0"); localStorage.setItem("cal-lastSync",String(lastSyncAt)); }catch(e){}
+    updateSync(); render();
+    if(manual) toast("Синхронизировано.");
+  })
+  .catch(function(e){
+    syncing = false; lastErr = String(e.message||e); updateSync();
+    if(manual) toast("Не удалось: "+lastErr);
+  });
+}
+
+/* ---------- старт ---------- */
+document.querySelectorAll(".overlay").forEach(function(o){
+  o.addEventListener("click", function(e){ if(e.target===o) o.classList.remove("open"); });
+});
+document.addEventListener("keydown", function(e){
+  if(e.key==="Escape") document.querySelectorAll(".overlay.open").forEach(function(o){ o.classList.remove("open"); });
+});
+
+load();
+curMonday = mondayOf(new Date());
+render();
+updateSync();
+
+if("serviceWorker" in navigator && location.protocol.indexOf("http")===0){
+  navigator.serviceWorker.register("sw.js").catch(function(){});
+}
+if(isConfigured()){
+  setTimeout(function(){ syncNow(false); }, 900);
+  setInterval(function(){ syncNow(false); }, 300000);
+}
+window.addEventListener("online",  function(){ updateSync(); syncNow(false); });
+window.addEventListener("offline", function(){ updateSync(); });
+document.addEventListener("visibilitychange", function(){ if(!document.hidden){ load(); render(); if(dirty) syncNow(false); } });
+</script>
+</body>
+</html>

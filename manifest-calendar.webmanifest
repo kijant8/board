@@ -1,0 +1,15 @@
+{
+  "name": "Календарь мероприятий — Атом",
+  "short_name": "Календарь",
+  "description": "Планирование мероприятий с контролем баланса времени",
+  "start_url": "./calendar.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#2A2A2E",
+  "theme_color": "#2A2A2E",
+  "icons": [
+    { "src": "icon-cal-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-cal-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

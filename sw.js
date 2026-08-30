@@ -1,8 +1,12 @@
 /* Сервис-воркер: держит приложение доступным без сети. */
-var CACHE = "atom-board-v3";
+var CACHE = "atom-board-v4";
 var ASSETS = [
   "./",
   "./index.html",
+  "./calendar.html",
+  "./manifest-calendar.webmanifest",
+  "./icon-cal-192.png",
+  "./icon-cal-512.png",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png"
